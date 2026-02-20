@@ -15,7 +15,8 @@
 
 <body>
 
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; autoStart: true; uiScanning: no;"
+    <a-scene
+        mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; autoStart: true; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.1; warmupTolerance: 5;"
         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
 
@@ -25,23 +26,23 @@
 
         <a-entity mindar-image-target="targetIndex: 0" id="card-anchor">
 
-            <a-plane id="center-ref" position="0 0 0" height="1" width="1.5" color="#cccccc" opacity="0.5"></a-plane>
+            <a-plane id="center-ref" position="0 0 0" height="0.55" width="1" color="#cccccc" opacity="0.1"></a-plane>
 
-            <a-plane id="panel-left" position="-1.6 0 0" height="1" width="1.2" color="#3AA3FF">
-                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            <a-plane id="panel-left" position="-1.05 0 0" height="0.6" width="0.9" color="#3AA3FF">
+                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
             </a-plane>
 
-            <a-plane id="panel-right" position="1.6 0 0" height="1" width="1.2" color="#FF5722">
-                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            <a-plane id="panel-right" position="1.05 0 0" height="0.6" width="0.9" color="#FF5722">
+                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
             </a-plane>
 
-            <a-plane id="panel-bottom" position="0 -0.8 0" height="0.4" width="1.5" color="#4CAF50">
-                <a-text value="Tech Stack" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            <a-plane id="panel-bottom" position="0 -0.45 0" height="0.25" width="1" color="#4CAF50">
+                <a-text value="Tech Stack" align="center" position="0 0 0.01" color="#FFFFFF"
+                    scale="0.8 0.8 0.8"></a-text>
             </a-plane>
 
         </a-entity>
     </a-scene>
-
     <script src="./src/ar-logic.js"></script>
 </body>
 
