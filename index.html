@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AR Business Card - Portfolio MVP</title>
+
+    <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
+
+    <link rel="stylesheet" href="./src/styles.css">
+</head>
+
+<body>
+
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; autoStart: true; uiScanning: no;"
+        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+
+        <a-assets></a-assets>
+
+        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+
+        <a-entity mindar-image-target="targetIndex: 0" id="card-anchor">
+
+            <a-plane id="center-ref" position="0 0 0" height="1" width="1.5" color="#cccccc" opacity="0.5"></a-plane>
+
+            <a-plane id="panel-left" position="-1.6 0 0" height="1" width="1.2" color="#3AA3FF">
+                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            </a-plane>
+
+            <a-plane id="panel-right" position="1.6 0 0" height="1" width="1.2" color="#FF5722">
+                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            </a-plane>
+
+            <a-plane id="panel-bottom" position="0 -0.8 0" height="0.4" width="1.5" color="#4CAF50">
+                <a-text value="Tech Stack" align="center" position="0 0 0.01" color="#FFFFFF"></a-text>
+            </a-plane>
+
+        </a-entity>
+    </a-scene>
+
+    <script src="./src/ar-logic.js"></script>
+</body>
+
+</html>
