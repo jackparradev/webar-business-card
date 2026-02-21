@@ -15,16 +15,14 @@
 
 <body>
 
-    <a-scene
-        mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; 
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; 
               autoStart: true; 
               uiScanning: no; 
               filterMinCF: 0.001; 
               filterBeta: 0.005;
               warmupTolerance: 5;
-              missTolerance: 5;"
-        color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
-        device-orientation-permission-ui="enabled: false">
+              missTolerance: 5;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
+        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
 
         <a-assets></a-assets>
 
@@ -32,19 +30,17 @@
 
         <a-entity mindar-image-target="targetIndex: 0" id="card-anchor">
 
-            <a-plane id="center-ref" position="0 0 0" height="0.55" width="1" color="#cccccc" opacity="0.1"></a-plane>
-
-            <a-plane id="panel-left" position="-1.05 0 0" height="0.6" width="0.9" color="#3AA3FF">
-                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
+            <a-plane id="panel-left" position="0 0 0" height="0.55" width="0.55" color="#3AA3FF" visible="false">
+                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
             </a-plane>
 
-            <a-plane id="panel-right" position="1.05 0 0" height="0.6" width="0.9" color="#FF5722">
-                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.8 0.8 0.8"></a-text>
+            <a-plane id="panel-right" position="0 0 0" height="0.55" width="0.55" color="#FF5722" visible="false">
+                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
             </a-plane>
 
-            <a-plane id="panel-bottom" position="0 -0.45 0" height="0.25" width="1" color="#4CAF50">
+            <a-plane id="panel-bottom" position="0 0 0" height="0.2" width="1" color="#4CAF50" visible="false">
                 <a-text value="Tech Stack" align="center" position="0 0 0.01" color="#FFFFFF"
-                    scale="0.8 0.8 0.8"></a-text>
+                    scale="0.6 0.6 0.6"></a-text>
             </a-plane>
 
         </a-entity>
