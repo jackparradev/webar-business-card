@@ -16,7 +16,13 @@
 <body>
 
     <a-scene
-        mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; autoStart: true; uiScanning: no; filterMinCF: 0.0005; filterBeta: 0.1; warmupTolerance: 5;"
+        mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; 
+              autoStart: true; 
+              uiScanning: no; 
+              filterMinCF: 0.001; 
+              filterBeta: 0.005;
+              warmupTolerance: 5;
+              missTolerance: 5;"
         color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights" vr-mode-ui="enabled: false"
         device-orientation-permission-ui="enabled: false">
 
