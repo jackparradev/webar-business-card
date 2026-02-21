@@ -1,166 +1,220 @@
 document.addEventListener("DOMContentLoaded", function () {
 
-    // ── Referencias DOM ──────────────────────────────────────────────────────
-    const target      = document.querySelector('#card-anchor');
-    const scanLine    = document.querySelector('#scan-line');
-    const panelLeft   = document.querySelector('#panel-left');
-    const panelRight  = document.querySelector('#panel-right');
-    const panelBottom = document.querySelector('#panel-bottom');
+    const target        = document.querySelector('#card-anchor');
+    const panelProfile  = document.querySelector('#panel-profile');
+    const panelLogo     = document.querySelector('#panel-logo');
+    const panelLinks    = document.querySelector('#panel-links');
+    const scanOverlay   = document.getElementById('scan-overlay');
+    const lostIndicator = document.getElementById('lost-indicator');
+    const toast         = document.getElementById('tap-toast');
 
-    // UI HTML
-    const scanOverlay    = document.getElementById('scan-overlay');
-    const tapToast       = document.getElementById('tap-toast');
-    const lostIndicator  = document.getElementById('lost-indicator');
-
-    // ── Estado ───────────────────────────────────────────────────────────────
-    let isAnimating        = false;
-    let isDeployed         = false;
+    let deployed           = false;
+    let animating          = false;
     let stabilizationTimer = null;
     let lostTimer          = null;
-    let toastTimer         = null;
 
-    // ── Acciones por ícono ───────────────────────────────────────────────────
-    const ACTIONS = {
-        github:   { label: 'Abriendo GitHub...',   fn: () => window.open('https://github.com/tu-usuario', '_blank') },
-        linkedin: { label: 'Abriendo LinkedIn...', fn: () => window.open('https://linkedin.com/in/tu-perfil', '_blank') },
-        phone:    { label: 'Llamando...',           fn: () => window.open('tel:+51999999999', '_blank') },
-        email:    { label: 'Abriendo correo...',    fn: () => window.open('mailto:tu@email.com', '_blank') },
+    /* ══════════════════════════════════════
+       LINKS — edita con tus datos reales
+    ══════════════════════════════════════ */
+    const LINKS = {
+        github:   'https://github.com/jackparradev',
+        linkedin: 'https://www.linkedin.com/in/jackparradev/',
+        phone:    'https://wa.me/51950886127'
     };
 
-    // ── Toast helper ─────────────────────────────────────────────────────────
+    const LABELS = {
+        github:   'GitHub',
+        linkedin: 'LinkedIn',
+        phone:    'WhatsApp'
+    };
+
+    /* ══════════════════════════════════════
+       TOAST
+    ══════════════════════════════════════ */
     function showToast(msg) {
-        tapToast.textContent = msg;
-        tapToast.classList.add('show');
-        if (toastTimer) clearTimeout(toastTimer);
-        toastTimer = setTimeout(() => tapToast.classList.remove('show'), 2000);
+        if (!toast) return;
+        toast.textContent = msg;
+        toast.classList.add('show');
+        setTimeout(function () { toast.classList.remove('show'); }, 2200);
     }
 
-    // ── Reset completo ───────────────────────────────────────────────────────
-    function resetPanels() {
-        isAnimating = false;
-        isDeployed  = false;
+    /* ══════════════════════════════════════
+       ACCIÓN
+    ══════════════════════════════════════ */
+    function handleAction(action) {
+        if (!action || !LINKS[action]) return;
+        showToast('Abriendo ' + (LABELS[action] || action) + '…');
+        setTimeout(function () {
+            window.open(LINKS[action], '_blank');
+        }, 350);
+    }
 
-        scanLine.setAttribute('visible', 'false');
-        scanLine.removeAttribute('animation');
-        scanLine.setAttribute('position', '0 0.275 0.02');
+    /* ══════════════════════════════════════
+       CLICKS — doble método para mobile
+    ══════════════════════════════════════ */
+    function registerClicks() {
 
-        [panelLeft, panelRight, panelBottom].forEach(panel => {
-            panel.setAttribute('visible', 'false');
+        // Método 1: raycaster A-Frame
+        document.querySelectorAll('.clickable').forEach(function (el) {
+            el.addEventListener('click', function (evt) {
+                handleAction(el.getAttribute('data-action'));
+                evt.stopPropagation();
+            });
+        });
+
+        // Método 2: touch directo sobre canvas con proyección 3D→pantalla
+        const canvas = document.querySelector('canvas');
+        if (!canvas) return;
+
+        canvas.addEventListener('touchend', function (evt) {
+            evt.preventDefault();
+            var t = evt.changedTouches[0];
+            checkTouch(t.clientX, t.clientY);
+        }, { passive: false });
+
+        canvas.addEventListener('mouseup', function (evt) {
+            checkTouch(evt.clientX, evt.clientY);
+        });
+    }
+
+    function checkTouch(touchX, touchY) {
+        if (!deployed) return;
+        var scene  = document.querySelector('a-scene');
+        var camera = document.querySelector('a-camera');
+        if (!scene || !camera) return;
+        var cam = camera.getObject3D('camera');
+        if (!cam) return;
+
+        var W    = window.innerWidth;
+        var H    = window.innerHeight;
+        var ndcX =  (touchX / W) * 2 - 1;
+        var ndcY = -(touchY / H) * 2 + 1;
+
+        var closest  = null;
+        var closestD = 9999;
+
+        document.querySelectorAll('.clickable').forEach(function (el) {
+            if (!el.object3D) return;
+            var pos = new THREE.Vector3();
+            el.object3D.getWorldPosition(pos);
+            pos.project(cam);
+            var dx = pos.x - ndcX;
+            var dy = pos.y - ndcY;
+            var d  = Math.sqrt(dx * dx + dy * dy);
+            if (d < 0.25 && d < closestD) {
+                closestD = d;
+                closest  = el;
+            }
+        });
+
+        if (closest) handleAction(closest.getAttribute('data-action'));
+    }
+
+    /* ══════════════════════════════════════
+       HELPER: anima panel a posición final
+    ══════════════════════════════════════ */
+    function animatePanel(panel, toX, toY, toZ, delay, dur) {
+        dur = dur || 650;
+        setTimeout(function () {
             panel.removeAttribute('animation');
-        });
-
-        panelLeft.setAttribute('position',   '0 0 0');
-        panelRight.setAttribute('position',  '0 0 0');
-        panelBottom.setAttribute('position', '0 0 0');
+            panel.object3D.position.set(0, 0, -0.15);
+            panel.setAttribute('visible', true);
+            requestAnimationFrame(function () {
+                panel.setAttribute('animation',
+                    'property: position; ' +
+                    'from: 0 0 -0.15; ' +
+                    'to: ' + toX + ' ' + toY + ' ' + toZ + '; ' +
+                    'dur: ' + dur + '; ' +
+                    'easing: easeOutExpo'
+                );
+            });
+        }, delay);
     }
 
-    // ── ScanLine como Promise ────────────────────────────────────────────────
-    function deployScanLine() {
-        return new Promise(resolve => {
-            scanLine.setAttribute('visible', 'true');
-            scanLine.setAttribute('animation',
-                'property: position; from: 0 0.275 0.02; to: 0 -0.275 0.02; dur: 500; easing: linear');
-
-            setTimeout(() => {
-                scanLine.setAttribute('visible', 'false');
-                resolve();
-            }, 520);
+    /* ══════════════════════════════════════
+       RESET
+    ══════════════════════════════════════ */
+    function resetPanels() {
+        deployed  = false;
+        animating = false;
+        [panelProfile, panelLogo, panelLinks].forEach(function (panel) {
+            panel.removeAttribute('animation');
+            panel.setAttribute('visible', false);
+            panel.object3D.position.set(0, 0, -0.15);
         });
     }
 
-    // ── Secuencia principal ──────────────────────────────────────────────────
+    /* ══════════════════════════════════════
+       DESPLIEGUE
+
+       Tarjeta: 1.0 ancho × 0.67 alto
+       Ratio imagen .mind: 640×429
+
+       PERFIL  izquierda → X: -0.82
+               (mitad tarjeta 0.50 + gap 0.05 + mitad panel 0.275 = 0.825)
+
+       LOGO    derecha   → X: +0.82
+
+       LINKS   abajo     → Y: -0.58
+               (mitad tarjeta 0.335 + gap 0.06 + mitad panel 0.18 = 0.575)
+    ══════════════════════════════════════ */
     function deployPanels() {
-        if (isAnimating || isDeployed) return;
-        isAnimating = true;
+        if (deployed || animating) return;
+        animating = true;
 
-        // Ocultar overlay de instrucción
-        scanOverlay.classList.add('hidden');
-        lostIndicator.classList.remove('show');
+        if (scanOverlay)   scanOverlay.classList.add('hidden');
+        if (lostIndicator) lostIndicator.classList.remove('show');
 
-        console.log("Iniciando secuencia: ScanLine → Paneles");
+        // PERFIL — izquierda (primer en aparecer)
+        animatePanel(panelProfile, -0.82,  0,     0.05,   0,  700);
 
-        deployScanLine().then(() => {
+        // LOGO — derecha
+        animatePanel(panelLogo,     0.82,  0,     0.05, 180,  700);
 
-            // Panel izquierdo — sale hacia la izquierda
-            panelLeft.setAttribute('visible', 'true');
-            panelLeft.setAttribute('animation',
-                'property: position; from: 0 0 0; to: -1.05 0 0.05; dur: 500; easing: easeOutCubic');
+        // LINKS — abajo (último, da sensación de despliegue secuencial)
+        animatePanel(panelLinks,    0,    -0.62,  0.05, 360,  650);
 
-            // Panel derecho — sale hacia la derecha (200ms después)
-            setTimeout(() => {
-                panelRight.setAttribute('visible', 'true');
-                panelRight.setAttribute('animation',
-                    'property: position; from: 0 0 0; to: 1.05 0 0.05; dur: 400; easing: easeOutCubic');
-            }, 200);
-
-            // Panel inferior — sale hacia abajo (400ms después)
-            setTimeout(() => {
-                panelBottom.setAttribute('visible', 'true');
-                panelBottom.setAttribute('animation',
-                    'property: position; from: 0 0 0; to: 0 -0.45 0.05; dur: 400; easing: easeOutCubic');
-
-                setTimeout(() => {
-                    isDeployed  = true;
-                    isAnimating = false;
-                    console.log("Secuencia completa.");
-                }, 400);
-            }, 400);
-        });
+        setTimeout(function () {
+            animating = false;
+            deployed  = true;
+        }, 1100);
     }
 
-    // ── Tracking events ──────────────────────────────────────────────────────
-    target.addEventListener("targetFound", () => {
+    /* ══════════════════════════════════════
+       TRACKING
+    ══════════════════════════════════════ */
+    var scene = document.querySelector('a-scene');
 
-        // Micro-pérdida: cancelamos reset, los paneles siguen donde están
+    function init() { registerClicks(); }
+
+    if (scene.hasLoaded) { init(); }
+    else { scene.addEventListener('loaded', init); }
+
+    target.addEventListener("targetFound", function () {
         if (lostTimer) {
             clearTimeout(lostTimer);
             lostTimer = null;
-            lostIndicator.classList.remove('show');
-            console.log("Micro-pérdida ignorada.");
-            return;
+            if (lostIndicator) lostIndicator.classList.remove('show');
         }
-
+        if (deployed) return;
         if (stabilizationTimer) clearTimeout(stabilizationTimer);
-        stabilizationTimer = setTimeout(deployPanels, 300);
+        stabilizationTimer = setTimeout(function () {
+            stabilizationTimer = null;
+            deployPanels();
+        }, 350);
     });
 
-    target.addEventListener("targetLost", () => {
+    target.addEventListener("targetLost", function () {
         if (stabilizationTimer) {
             clearTimeout(stabilizationTimer);
             stabilizationTimer = null;
         }
-
-        // Mostramos indicador visual de pérdida
-        lostIndicator.classList.add('show');
-
-        // Esperamos 800ms antes de resetear (tolerancia micro-pérdidas)
-        lostTimer = setTimeout(() => {
+        if (lostIndicator) lostIndicator.classList.add('show');
+        lostTimer = setTimeout(function () {
             lostTimer = null;
-            console.log("Pérdida real confirmada. Reseteando...");
             resetPanels();
-            // Volvemos a mostrar el overlay de instrucción
-            scanOverlay.classList.remove('hidden');
-        }, 800);
-    });
-
-    // ── Interactividad táctil ────────────────────────────────────────────────
-    document.querySelectorAll('.clickable').forEach(item => {
-        item.addEventListener('click', function () {
-            if (!isDeployed) return; // Ignorar taps durante animación
-
-            const action = this.getAttribute('data-action');
-            console.log("Tap en:", action || this.id);
-
-            // Feedback visual: rebote suave
-            this.setAttribute('animation__tap',
-                'property: scale; from: 0.85 0.85 0.85; to: 1 1 1; dur: 300; easing: easeOutElastic');
-
-            if (action && ACTIONS[action]) {
-                showToast(ACTIONS[action].label);
-                // Pequeño delay para que el usuario vea el toast antes de salir
-                setTimeout(() => ACTIONS[action].fn(), 400);
-            }
-        });
+            if (scanOverlay) scanOverlay.classList.remove('hidden');
+        }, 1200);
     });
 
 });
