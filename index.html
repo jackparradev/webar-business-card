@@ -30,6 +30,13 @@
 
         <a-entity mindar-image-target="targetIndex: 0" id="card-anchor">
 
+            <a-plane id="center-ref" position="0 0 0" height="0.55" width="1" color="#cccccc" opacity="0.1"></a-plane>
+
+            <!-- Scanline que cruza toda la tarjeta, con glow via opacity -->
+            <a-plane id="scan-line" position="0 0.275 0.02" height="0.015" width="1.0" color="#3AA3FF"
+                material="shader: flat; opacity: 0.9" visible="false">
+            </a-plane>
+
             <a-plane id="panel-left" position="0 0 0" height="0.55" width="0.55" color="#3AA3FF" visible="false">
                 <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
             </a-plane>
