@@ -4,54 +4,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AR Business Card - Portfolio MVP</title>
+    <title>AR Business Card - dev26</title>
 
     <script src="https://aframe.io/releases/1.3.0/aframe.min.js"></script>
-
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.2/dist/mindar-image-aframe.prod.js"></script>
 
-    <link rel="stylesheet" href="./src/styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background: #000;
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+
+        /* ── Overlay de escaneo inicial ─────────────────────────────── */
+        #scan-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(4px);
+            transition: opacity 0.6s ease;
+        }
+
+        #scan-overlay.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .scan-frame {
+            width: 260px;
+            height: 160px;
+            position: relative;
+            margin-bottom: 28px;
+        }
+
+        /* Esquinas del frame */
+        .scan-frame::before,
+        .scan-frame::after,
+        .scan-frame .corner-br,
+        .scan-frame .corner-bl {
+            content: '';
+            position: absolute;
+            width: 28px;
+            height: 28px;
+            border-color: #3AA3FF;
+            border-style: solid;
+        }
+
+        .scan-frame::before {
+            top: 0; left: 0;
+            border-width: 3px 0 0 3px;
+        }
+
+        .scan-frame::after {
+            top: 0; right: 0;
+            border-width: 3px 3px 0 0;
+        }
+
+        .scan-frame .corner-br {
+            bottom: 0; right: 0;
+            border-width: 0 3px 3px 0;
+        }
+
+        .scan-frame .corner-bl {
+            bottom: 0; left: 0;
+            border-width: 0 0 3px 3px;
+        }
+
+        /* Línea de escaneo animada en el overlay */
+        .scan-beam {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, #3AA3FF, #00EEFF, #3AA3FF, transparent);
+            box-shadow: 0 0 12px #3AA3FF, 0 0 24px #00EEFF44;
+            animation: beam-sweep 2s ease-in-out infinite;
+        }
+
+        @keyframes beam-sweep {
+            0%   { top: 0%;   opacity: 0; }
+            10%  { opacity: 1; }
+            90%  { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scan-label {
+            color: #3AA3FF;
+            font-size: 13px;
+            font-weight: 500;
+            letter-spacing: 3px;
+            text-transform: uppercase;
+            animation: pulse-text 1.5s ease-in-out infinite;
+        }
+
+        @keyframes pulse-text {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        .scan-hint {
+            color: rgba(255,255,255,0.45);
+            font-size: 11px;
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ── Toast de feedback al tocar ────────────────────────────── */
+        #tap-toast {
+            position: fixed;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%) translateY(20px);
+            background: rgba(58, 163, 255, 0.15);
+            border: 1px solid rgba(58, 163, 255, 0.4);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            font-size: 13px;
+            padding: 10px 22px;
+            border-radius: 40px;
+            letter-spacing: 1px;
+            opacity: 0;
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            pointer-events: none;
+            z-index: 200;
+            white-space: nowrap;
+        }
+
+        #tap-toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* ── Indicador de tracking perdido ─────────────────────────── */
+        #lost-indicator {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(255, 87, 34, 0.15);
+            border: 1px solid rgba(255, 87, 34, 0.5);
+            color: #FF5722;
+            font-size: 11px;
+            padding: 6px 16px;
+            border-radius: 20px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            opacity: 0;
+            transition: opacity 0.4s ease;
+            pointer-events: none;
+            z-index: 200;
+        }
+
+        #lost-indicator.show {
+            opacity: 1;
+        }
+    </style>
 </head>
 
 <body>
 
-    <a-scene mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind; 
-              autoStart: true; 
-              uiScanning: no; 
-              filterMinCF: 0.001; 
-              filterBeta: 0.005;
-              warmupTolerance: 5;
-              missTolerance: 5;" color-space="sRGB" renderer="colorManagement: true, physicallyCorrectLights"
-        vr-mode-ui="enabled: false" device-orientation-permission-ui="enabled: false">
+    <!-- Overlay de instrucción inicial -->
+    <div id="scan-overlay">
+        <div class="scan-frame">
+            <div class="scan-beam"></div>
+            <div class="corner-br"></div>
+            <div class="corner-bl"></div>
+        </div>
+        <p class="scan-label">Apunta a la tarjeta</p>
+        <p class="scan-hint">Mantén la cámara estable</p>
+    </div>
 
-        <a-assets></a-assets>
+    <!-- Toast de feedback táctil -->
+    <div id="tap-toast"></div>
 
-        <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
+    <!-- Indicador de pérdida de tracking -->
+    <div id="lost-indicator">⚠ Reencuadra la tarjeta</div>
+
+    <!-- ── Escena AR ──────────────────────────────────────────────── -->
+    <a-scene mindar-image="imageTargetSrc: ./assets/targets/cardtest.mind;
+                           autoStart: true;
+                           uiScanning: no;
+                           filterMinCF: 0.001;
+                           filterBeta: 0.005;
+                           warmupTolerance: 5;
+                           missTolerance: 5;"
+        color-space="sRGB"
+        renderer="colorManagement: true, physicallyCorrectLights"
+        vr-mode-ui="enabled: false"
+        device-orientation-permission-ui="enabled: false">
+
+        <a-assets>
+            <img id="img-perfil" src="./assets/ui/Perfil.png" />
+            <img id="img-logo" src="./assets/ui/dev26.png" />
+            <img id="img-github" src="./assets/ui/github-logo_icon-icons.com_73546.svg" />
+            <img id="img-linkedin" src="./assets/ui/LINKEDIN_icon-icons.com_65488.svg" />
+            <img id="img-phone" src="./assets/ui/whatsapp-logo_icon-icons.com_57054.svg" />
+            <img id="img-email" src="./assets/ui/arroba_122776.svg" />
+        </a-assets>
+
+        <!-- Cámara con raycaster táctil -->
+        <a-camera position="0 0 0" look-controls="enabled: false">
+            <a-entity cursor="fuse: false; rayOrigin: mouse;"
+                      raycaster="objects: .clickable"></a-entity>
+        </a-camera>
 
         <a-entity mindar-image-target="targetIndex: 0" id="card-anchor">
 
-            <a-plane id="center-ref" position="0 0 0" height="0.55" width="1" color="#cccccc" opacity="0.1"></a-plane>
+            <!-- Referencia invisible de la tarjeta -->
+            <a-plane id="center-ref" position="0 0 0"
+                     height="0.55" width="1"
+                     color="#000000" opacity="0"></a-plane>
 
-            <!-- Scanline que cruza toda la tarjeta, con glow via opacity -->
-            <a-plane id="scan-line" position="0 0.275 0.02" height="0.015" width="1.0" color="#3AA3FF"
-                material="shader: flat; opacity: 0.9" visible="false">
-            </a-plane>
+            <!-- ScanLine holográfica -->
+            <a-plane id="scan-line"
+                     position="0 0.275 0.02"
+                     height="0.015" width="1.0"
+                     color="#3AA3FF"
+                     material="shader: flat; opacity: 0.9"
+                     visible="false"></a-plane>
 
-            <a-plane id="panel-left" position="0 0 0" height="0.55" width="0.55" color="#3AA3FF" visible="false">
-                <a-text value="Perfil" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
-            </a-plane>
+            <!-- ── Panel Izquierdo: Foto de perfil ─────────────────── -->
+            <a-entity id="panel-left" position="0 0 0" visible="false">
 
-            <a-plane id="panel-right" position="0 0 0" height="0.55" width="0.55" color="#FF5722" visible="false">
-                <a-text value="Links" align="center" position="0 0 0.01" color="#FFFFFF" scale="0.6 0.6 0.6"></a-text>
-            </a-plane>
+                <!-- Fondo panel con borde glow -->
+                <a-plane position="0 0 -0.01"
+                         height="0.58" width="0.58"
+                         color="#050D1A"
+                         material="shader: flat; opacity: 0.85; transparent: true"></a-plane>
 
-            <a-plane id="panel-bottom" position="0 0 0" height="0.2" width="1" color="#4CAF50" visible="false">
-                <a-text value="Tech Stack" align="center" position="0 0 0.01" color="#FFFFFF"
-                    scale="0.6 0.6 0.6"></a-text>
-            </a-plane>
+                <!-- Borde superior azul -->
+                <a-plane position="0 0.295 0"
+                         height="0.004" width="0.58"
+                         color="#3AA3FF"
+                         material="shader: flat; opacity: 1"></a-plane>
+
+                <!-- Foto de perfil circular (simulada con imagen) -->
+                <a-image src="#img-perfil" class="clickable"
+                         position="0 0.06 0.01"
+                         height="0.36" width="0.36"></a-image>
+
+                <!-- Nombre -->
+                <a-text value="dev26"
+                        align="center"
+                        position="0 -0.19 0.01"
+                        color="#3AA3FF"
+                        font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"
+                        scale="0.55 0.55 0.55"></a-text>
+
+                <!-- Rol -->
+                <a-text value="Full Stack Developer"
+                        align="center"
+                        position="0 -0.255 0.01"
+                        color="rgba(255,255,255,0.65)"
+                        scale="0.28 0.28 0.28"></a-text>
+
+            </a-entity>
+
+            <!-- ── Panel Derecho: Grid de íconos sociales ──────────── -->
+            <a-entity id="panel-right" position="0 0 0" visible="false">
+
+                <!-- Fondo panel -->
+                <a-plane position="0 0 -0.01"
+                         height="0.58" width="0.58"
+                         color="#050D1A"
+                         material="shader: flat; opacity: 0.85; transparent: true"></a-plane>
+
+                <!-- Borde superior naranja -->
+                <a-plane position="0 0.295 0"
+                         height="0.004" width="0.58"
+                         color="#FF5722"
+                         material="shader: flat; opacity: 1"></a-plane>
+
+                <!-- Label "Conecta" -->
+                <a-text value="CONECTA"
+                        align="center"
+                        position="0 0.22 0.01"
+                        color="#FF5722"
+                        font="https://cdn.aframe.io/fonts/Exo2Bold.fnt"
+                        scale="0.38 0.38 0.38"></a-text>
+
+                <!-- Fondo íconos (pastillas redondeadas simuladas) -->
+                <a-plane position="-0.15 0.09 0.005"
+                         height="0.16" width="0.16"
+                         color="#0A1628"
+                         material="shader: flat; opacity: 0.9; transparent: true"></a-plane>
+                <a-plane position="0.15 0.09 0.005"
+                         height="0.16" width="0.16"
+                         color="#0A1628"
+                         material="shader: flat; opacity: 0.9; transparent: true"></a-plane>
+                <a-plane position="-0.15 -0.09 0.005"
+                         height="0.16" width="0.16"
+                         color="#0A1628"
+                         material="shader: flat; opacity: 0.9; transparent: true"></a-plane>
+                <a-plane position="0.15 -0.09 0.005"
+                         height="0.16" width="0.16"
+                         color="#0A1628"
+                         material="shader: flat; opacity: 0.9; transparent: true"></a-plane>
+
+                <!-- Íconos -->
+                <a-image src="#img-github"   class="clickable" data-action="github"
+                         position="-0.15  0.09 0.015" height="0.10" width="0.10"></a-image>
+                <a-image src="#img-linkedin" class="clickable" data-action="linkedin"
+                         position=" 0.15  0.09 0.015" height="0.10" width="0.10"></a-image>
+                <a-image src="#img-phone"    class="clickable" data-action="phone"
+                         position="-0.15 -0.09 0.015" height="0.10" width="0.10"></a-image>
+                <a-image src="#img-email"    class="clickable" data-action="email"
+                         position=" 0.15 -0.09 0.015" height="0.10" width="0.10"></a-image>
+
+                <!-- Labels de íconos -->
+                <a-text value="GitHub"   align="center" position="-0.15  0.005 0.015"
+                        color="rgba(255,255,255,0.5)" scale="0.18 0.18 0.18"></a-text>
+                <a-text value="LinkedIn" align="center" position=" 0.15  0.005 0.015"
+                        color="rgba(255,255,255,0.5)" scale="0.18 0.18 0.18"></a-text>
+                <a-text value="Llamar"   align="center" position="-0.15 -0.175 0.015"
+                        color="rgba(255,255,255,0.5)" scale="0.18 0.18 0.18"></a-text>
+                <a-text value="Email"    align="center" position=" 0.15 -0.175 0.015"
+                        color="rgba(255,255,255,0.5)" scale="0.18 0.18 0.18"></a-text>
+
+            </a-entity>
+
+            <!-- ── Panel Inferior: Logo dev26 ──────────────────────── -->
+            <a-entity id="panel-bottom" position="0 0 0" visible="false">
+
+                <a-plane position="0 0 -0.01"
+                         height="0.22" width="1.05"
+                         color="#050D1A"
+                         material="shader: flat; opacity: 0.85; transparent: true"></a-plane>
+
+                <!-- Borde izquierdo verde -->
+                <a-plane position="-0.525 0 0"
+                         height="0.22" width="0.004"
+                         color="#4CAF50"
+                         material="shader: flat; opacity: 1"></a-plane>
+
+                <a-image src="#img-logo" class="clickable"
+                         position="0 0 0.01"
+                         height="0.16" width="0.7"></a-image>
+
+            </a-entity>
 
         </a-entity>
     </a-scene>
+
     <script src="./src/ar-logic.js"></script>
 </body>
 
